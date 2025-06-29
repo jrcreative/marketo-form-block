@@ -1,0 +1,167 @@
+# Copyright (C) 2025 Your Name
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Marketo Form Block 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/marketo-form-block\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-06-23T08:15:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.7.0\n"
+"X-Domain: marketo-form-block\n"
+
+#. Plugin Name of the plugin
+msgid "Marketo Form Block"
+msgstr ""
+
+#. Description of the plugin
+msgid "A Gutenberg block for embedding Marketo forms with custom styling options."
+msgstr ""
+
+#. Author of the plugin
+msgid "Your Name"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://yourwebsite.com"
+msgstr ""
+
+#: marketo-form-block.php:95
+msgid "Please specify a Marketo Form ID."
+msgstr ""
+
+#: marketo-form-block.php:134
+msgid "Error: Marketo Forms API not loaded. Please check your configuration."
+msgstr ""
+
+#: includes/class-marketo-form-block.php:93
+msgid "Thank you for your submission!"
+msgstr ""
+
+#: includes/class-marketo-form-block.php:94
+msgid "There was an error processing your submission. Please try again."
+msgstr ""
+
+#: src/block.js:21
+msgid "Marketo Form"
+msgstr ""
+
+#: src/block.js:24
+msgid "marketo"
+msgstr ""
+
+#: src/block.js:25
+msgid "form"
+msgstr ""
+
+#: src/block.js:26
+msgid "marketing"
+msgstr ""
+
+#: src/block.js:35
+msgid "Thank you for your submission!"
+msgstr ""
+
+#: src/block.js:39
+msgid "There was an error processing your submission. Please try again."
+msgstr ""
+
+#: src/block.js:63
+msgid "Form Settings"
+msgstr ""
+
+#: src/block.js:65
+msgid "Marketo Form ID"
+msgstr ""
+
+#: src/block.js:68
+msgid "Enter the Marketo Form ID"
+msgstr ""
+
+#: src/block.js:71
+msgid "Redirect URL"
+msgstr ""
+
+#: src/block.js:74
+msgid "Enter the URL to redirect to after form submission (optional)"
+msgstr ""
+
+#: src/block.js:77
+msgid "Success Message"
+msgstr ""
+
+#: src/block.js:80
+msgid "Message to display after successful form submission"
+msgstr ""
+
+#: src/block.js:83
+msgid "Error Message"
+msgstr ""
+
+#: src/block.js:86
+msgid "Message to display if form submission fails"
+msgstr ""
+
+#: src/block.js:91
+msgid "Styling Options"
+msgstr ""
+
+#: src/block.js:93
+msgid "Disable Default Marketo Styles"
+msgstr ""
+
+#: src/block.js:96
+msgid "Enable this to remove Marketo's default styling and allow your theme styles to take precedence."
+msgstr ""
+
+#: src/block.js:100
+msgid "Custom CSS"
+msgstr ""
+
+#: src/block.js:103
+msgid "Enter custom CSS to style the Marketo form. Use .mktoForm as the parent selector."
+msgstr ""
+
+#: src/block.js:112
+msgid "Marketo Form"
+msgstr ""
+
+#: src/block.js:115
+msgid "Form ID:"
+msgstr ""
+
+#: src/block.js:117
+msgid "Redirect URL:"
+msgstr ""
+
+#: src/block.js:120
+msgid "Custom Styling:"
+msgstr ""
+
+#: src/block.js:120
+msgid "Applied"
+msgstr ""
+
+#: src/block.js:120
+msgid "None"
+msgstr ""
+
+#: src/block.js:121
+msgid "Default Styles:"
+msgstr ""
+
+#: src/block.js:121
+msgid "Disabled"
+msgstr ""
+
+#: src/block.js:121
+msgid "Enabled"
+msgstr ""
+
+#: src/block.js:125
+msgid "Please enter a Marketo Form ID in the block settings."
+msgstr ""

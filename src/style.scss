@@ -1,0 +1,80 @@
+/**
+ * Frontend styles for the Marketo Form Block
+ */
+
+.marketo-form-container {
+    margin-bottom: 20px;
+    
+    // Basic reset for when default Marketo styles are disabled
+    .mktoForm {
+        width: 100% !important;
+        max-width: 600px;
+        
+        .mktoFormRow {
+            clear: both;
+            margin-bottom: 15px;
+        }
+        
+        .mktoLabel {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .mktoField {
+            width: 100% !important;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.5;
+            box-sizing: border-box;
+            
+            &:focus {
+                border-color: #007cba;
+                outline: none;
+                box-shadow: 0 0 0 1px #007cba;
+            }
+        }
+        
+        .mktoButtonRow {
+            margin-top: 20px;
+            
+            .mktoButton {
+                background-color: #007cba;
+                border: none;
+                color: #fff;
+                padding: 10px 15px;
+                border-radius: 4px;
+                font-size: 14px;
+                cursor: pointer;
+                
+                &:hover {
+                    background-color: #0070a7;
+                }
+            }
+        }
+        
+        .mktoError {
+            color: #cc1818;
+            margin-top: 5px;
+            font-size: 12px;
+        }
+    }
+}
+
+.marketo-form-success {
+    padding: 15px;
+    background-color: #ecf7ed;
+    border-left: 4px solid #46b450;
+    margin: 20px 0;
+    color: #333;
+}
+
+.marketo-form-error {
+    padding: 15px;
+    background-color: #fbeaea;
+    border-left: 4px solid #cc1818;
+    margin: 20px 0;
+    color: #333;
+}

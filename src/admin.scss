@@ -1,0 +1,65 @@
+/**
+ * Admin styles for the Marketo Form Block
+ */
+
+.marketo-form-block-settings {
+    max-width: 800px;
+    margin: 20px 0;
+    
+    .form-table {
+        margin-top: 20px;
+        
+        th {
+            padding: 15px 10px 15px 0;
+            width: 200px;
+        }
+        
+        td {
+            padding: 15px 10px;
+            
+            input[type="text"],
+            input[type="url"],
+            textarea {
+                width: 100%;
+                max-width: 400px;
+            }
+            
+            textarea {
+                min-height: 100px;
+            }
+        }
+    }
+    
+    .submit {
+        margin-top: 20px;
+    }
+    
+    .description {
+        font-style: italic;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .marketo-form-block-help {
+        background: #f8f9f9;
+        border: 1px solid #e2e4e7;
+        border-left: 4px solid #007cba;
+        padding: 15px;
+        margin: 20px 0;
+        
+        h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin: 0 0 10px;
+        }
+        
+        code {
+            background: #f0f0f1;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    }
+}

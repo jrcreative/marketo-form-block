@@ -1,0 +1,30 @@
+{
+  "name": "marketo-form-block",
+  "version": "1.0.0",
+  "description": "A Gutenberg block for embedding Marketo forms with custom styling options",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "wp-scripts build",
+    "start": "wp-scripts start",
+    "format": "wp-scripts format",
+    "lint:css": "wp-scripts lint-style",
+    "lint:js": "wp-scripts lint-js",
+    "packages-update": "wp-scripts packages-update",
+    "build:zip": "./build-zip.sh"
+  },
+  "author": "Your Name",
+  "license": "GPL-2.0-or-later",
+  "devDependencies": {
+    "@wordpress/block-editor": "^10.5.0",
+    "@wordpress/blocks": "^11.13.0",
+    "@wordpress/components": "^22.1.0",
+    "@wordpress/element": "^4.20.0",
+    "@wordpress/i18n": "^4.20.0",
+    "@wordpress/scripts": "^30.18.0",
+    "sass": "^1.32.13"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  }
+}

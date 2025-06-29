@@ -1,0 +1,80 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor Files
+*.sublime-project
+*.sublime-workspace
+*.komodoproject
+.komodotools
+*.esproj
+*.tmproj
+*.tmproject
+tmtags
+.idea/
+.vscode/
+*.swp
+*.vi
+*~
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+.pnp/
+.pnp.js
+.npm
+
+# Build Files
+/build/*.map
+/build/*.asset.php
+.sass-cache/
+*.css.map
+*.js.map
+
+# WordPress Specific
+wp-config.php
+wp-content/advanced-cache.php
+wp-content/backup-db/
+wp-content/backups/
+wp-content/blogs.dir/
+wp-content/cache/
+wp-content/upgrade/
+wp-content/uploads/
+wp-content/wp-cache-config.php
+wp-content/plugins/hello.php
+
+# Packages
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs
+*.log
+logs/
+
+# Environment Files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Composer
+vendor/
+composer.phar
+
+# PHPUnit
+.phpunit.result.cache
+
+# Local Development Files
+test-marketo-form.html

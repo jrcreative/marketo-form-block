@@ -1,0 +1,32 @@
+/**
+ * Editor styles for the Marketo Form Block
+ */
+
+.wp-block-marketo-form-block-form {
+    border: 1px solid #e2e4e7;
+    padding: 20px;
+    background-color: #f8f9f9;
+    
+    .marketo-form-placeholder {
+        h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        p {
+            margin: 8px 0;
+            font-size: 13px;
+            
+            strong {
+                font-weight: 600;
+            }
+        }
+        
+        .marketo-form-placeholder-empty {
+            color: #888;
+            font-style: italic;
+        }
+    }
+}
