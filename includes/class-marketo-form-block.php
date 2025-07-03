@@ -117,7 +117,7 @@ class Marketo_Form_Block_Main {
         $validated['errorMessage'] = isset( $settings['errorMessage'] ) ? wp_kses_post( $settings['errorMessage'] ) : $defaults['errorMessage'];
 
         // Validate custom CSS
-        $validated['customCSS'] = isset( $settings['customCSS'] ) ? $this->sanitize_css( $settings['customCSS'] ) : '';
+        $validated['customCSS'] = isset( $settings['customCSS'] ) ? wp_strip_all_tags( $settings['customCSS'] ) : '';
 
         // Validate disable default styles
         $validated['disableDefaultStyles'] = isset( $settings['disableDefaultStyles'] ) ? (bool) $settings['disableDefaultStyles'] : $defaults['disableDefaultStyles'];
@@ -125,20 +125,6 @@ class Marketo_Form_Block_Main {
         return $validated;
     }
 
-    /**
-     * Basic CSS sanitization.
-     *
-     * @param string $css The CSS to sanitize.
-     * @return string Sanitized CSS.
-     */
-    private function sanitize_css( $css ) {
-        // Remove potentially malicious CSS
-        $css = preg_replace( '/expression\s*\(.*\)/i', '', $css );
-        $css = preg_replace( '/behavior\s*:.*?;/i', '', $css );
-        $css = preg_replace( '/@import\s+[^;]+;/i', '', $css );
-        
-        return $css;
-    }
 }
 
 // Initialize the class

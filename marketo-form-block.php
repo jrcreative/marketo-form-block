@@ -166,14 +166,6 @@ class Marketo_Form_Block_Core {
         $marketo_instance = sanitize_text_field($marketo_instance);
         $munchkin_id = sanitize_text_field(get_option('marketo_form_block_munchkin_id', '041-FSQ-281'));
         
-        // Add debug info to the page
-        add_action('wp_head', function() use ($marketo_instance, $munchkin_id) {
-            echo "<!-- Marketo Form Block Debug Info:\n";
-            echo "     Instance: " . esc_html($marketo_instance) . "\n";
-            echo "     Munchkin ID: " . esc_html($munchkin_id) . "\n";
-            echo "     Plugin Version: " . esc_html(MARKETO_FORM_BLOCK_VERSION) . "\n";
-            echo "-->\n";
-        });
         
         // Check if a Marketo form block is present on the page
         global $post;
@@ -195,11 +187,9 @@ class Marketo_Form_Block_Core {
             add_action('wp_footer', function() use ($marketo_instance, $munchkin_id) {
                 // Add Marketo Forms API script
                 echo '<script src="https://' . esc_attr($marketo_instance) . '/js/forms2/js/forms2.min.js"></script>';
-                echo '<script>console.log("[Marketo Debug] Marketo Forms API script added to body");</script>';
                 // Add Marketo configuration
                 echo '<script id="marketo-form-block-config-js-extra" type="text/javascript">';
                 echo 'var marketo = {"url":"https://' . esc_js($marketo_instance) . '","api":"' . esc_js($munchkin_id) . '"};';
-                echo 'console.log("[Marketo Debug] Marketo configuration added to head:", marketo);';
                 echo '</script>';
             }, 5); // High priority (low number) to ensure it loads early in the footer
             
@@ -247,9 +237,9 @@ class Marketo_Form_Block_Core {
         // Sanitize all block attributes
         $form_id = isset( $attributes['formId'] ) ? sanitize_text_field( $attributes['formId'] ) : '';
         $redirect_url = isset( $attributes['redirectUrl'] ) ? esc_url_raw( $attributes['redirectUrl'] ) : '';
-        $success_message = isset( $attributes['successMessage'] ) ? sanitize_text_field( $attributes['successMessage'] ) : '';
-        $error_message = isset( $attributes['errorMessage'] ) ? sanitize_text_field( $attributes['errorMessage'] ) : '';
-        $custom_css = isset( $attributes['customCSS'] ) ? $attributes['customCSS'] : '';
+        $success_message = isset( $attributes['successMessage'] ) ? wp_kses_post( $attributes['successMessage'] ) : '';
+        $error_message = isset( $attributes['errorMessage'] ) ? wp_kses_post( $attributes['errorMessage'] ) : '';
+        $custom_css = isset( $attributes['customCSS'] ) ? wp_strip_all_tags( $attributes['customCSS'] ) : '';
         $disable_default_styles = isset( $attributes['disableDefaultStyles'] ) ? (bool) $attributes['disableDefaultStyles'] : true;
         
         if ( empty( $form_id ) ) {
@@ -279,51 +269,25 @@ class Marketo_Form_Block_Core {
                 . '</style>';
         }
         
-        // Check if we're on a local development environment
-        $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( $_SERVER['HTTP_HOST'] ) : '';
-        $is_local = strpos( $host, 'localhost' ) !== false ||
-                    strpos( $host, '127.0.0.1' ) !== false ||
-                    strpos( $host, '.local' ) !== false ||
-                    strpos( $host, '.test' ) !== false;
-        
-        if ( $is_local ) {
-            // Show preview mode for local development
-            ?>
-            <div class="marketo-form-preview" style="border: 2px dashed #ccc; padding: 20px; background: #f9f9f9;">
-                <h3>Marketo Form Preview (Local Development)</h3>
-                <p><strong>Form ID:</strong> <?php echo esc_html($form_id); ?></p>
-                <p><strong>Marketo Instance:</strong> <?php echo esc_html($marketo_instance); ?></p>
-                <p><strong>Munchkin ID:</strong> <?php echo esc_html($munchkin_id); ?></p>
-                <p style="color: #e74c3c; font-style: italic; margin: 15px 0;">Note: Actual form will appear on production domain.</p>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div style="margin-bottom: 10px;"><label style="display: block; margin-bottom: 5px; font-weight: bold;">First Name</label><input type="text" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd;" /></div>
-                    <div style="margin-bottom: 10px;"><label style="display: block; margin-bottom: 5px; font-weight: bold;">Last Name</label><input type="text" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd;" /></div>
-                    <div style="margin-bottom: 10px;"><label style="display: block; margin-bottom: 5px; font-weight: bold;">Email</label><input type="email" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd;" /></div>
-                    <div style="margin-bottom: 10px;"><button disabled style="width: 100%; padding: 8px; border: 1px solid #ddd;">Submit</button></div>
-                </div>
+        // On production, use the direct HTML approach with data attributes
+        ?>
+        <div id="<?php echo esc_attr($form_container_id); ?>" class="marketo-form-container">
+            <form
+                id="mktoForm_<?php echo esc_attr($form_id); ?>"
+                class="mktoForm"
+                data-id="<?php echo esc_attr($form_id); ?>"
+                <?php if (!empty($redirect_url)) : ?>
+                data-confirmation-type="redirect"
+                data-link="<?php echo esc_attr($redirect_url); ?>"
+                <?php else : ?>
+                data-confirmation-type="message"
+                <?php endif; ?>>
+            </form>
+            <div id="mktoFormSuccess-<?php echo esc_attr($form_container_id); ?>" class="marketo-form-success" style="display: none;">
+                <?php echo esc_html($success_message); ?>
             </div>
-            <?php
-        } else {
-            // On production, use the direct HTML approach with data attributes
-            ?>
-            <div id="<?php echo esc_attr($form_container_id); ?>" class="marketo-form-container">
-                <form
-                    id="mktoForm_<?php echo esc_attr($form_id); ?>"
-                    class="mktoForm"
-                    data-id="<?php echo esc_attr($form_id); ?>"
-                    <?php if (!empty($redirect_url)) : ?>
-                    data-confirmation-type="redirect"
-                    data-link="<?php echo esc_attr($redirect_url); ?>"
-                    <?php else : ?>
-                    data-confirmation-type="message"
-                    <?php endif; ?>>
-                </form>
-                <div id="mktoFormSuccess-<?php echo esc_attr($form_container_id); ?>" class="marketo-form-success" style="display: none;">
-                    <?php echo esc_html($success_message); ?>
-                </div>
-            </div>
-            <?php
-        }
+        </div>
+        <?php
         
         // Return the buffered content
         return ob_get_clean();
@@ -491,8 +455,6 @@ class Marketo_Form_Block_Core {
         // Use esc_url_raw for URLs that will be used in HTTP requests
         $url = esc_url_raw( 'https://' . $instance . '/js/forms2/js/forms2.min.js' );
         
-        // Log the test attempt
-        error_log( 'Testing Marketo connection to: ' . $url );
         
         $response = wp_remote_get( $url, array(
             'timeout' => 15,
@@ -506,7 +468,6 @@ class Marketo_Form_Block_Core {
         
         if ( is_wp_error( $response ) ) {
             $error_message = $response->get_error_message();
-            error_log( 'Marketo connection test failed with error: ' . $error_message );
             
             return array(
                 'success' => false,
@@ -527,7 +488,6 @@ class Marketo_Form_Block_Core {
         $headers = wp_remote_retrieve_headers( $response );
         $body = wp_remote_retrieve_body( $response );
         
-        error_log( 'Marketo connection test response code: ' . $code );
         
         if ( $code !== 200 ) {
             $message = sprintf(
@@ -544,7 +504,6 @@ class Marketo_Form_Block_Core {
                 $message .= '<br>' . __( 'Marketo server error. The service might be temporarily unavailable.', 'marketo-form-block' );
             }
             
-            error_log( 'Marketo connection test failed: ' . $message );
             
             return array(
                 'success' => false,
@@ -554,7 +513,6 @@ class Marketo_Form_Block_Core {
         
         // Check if the response actually contains the Marketo Forms API
         if ( strpos( $body, 'MktoForms2' ) === false ) {
-            error_log( 'Marketo connection test: Response does not contain MktoForms2' );
             
             return array(
                 'success' => false,
@@ -565,7 +523,6 @@ class Marketo_Form_Block_Core {
         // Check for CORS headers
         $has_cors_headers = isset( $headers['access-control-allow-origin'] );
         
-        error_log( 'Marketo connection test successful. CORS headers present: ' . ( $has_cors_headers ? 'Yes' : 'No' ) );
         
         $message = __( 'Connection successful! Your Marketo instance is accessible.', 'marketo-form-block' );
         
@@ -585,20 +542,6 @@ class Marketo_Form_Block_Core {
     public function render_general_section() {
         echo '<p>' . esc_html__( 'Configure your Marketo API settings below. These are required for the Marketo Form Block to function correctly.', 'marketo-form-block' ) . '</p>';
         
-        // Check if we're on a local development environment
-        $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( $_SERVER['HTTP_HOST'] ) : '';
-        $is_local = strpos( $host, 'localhost' ) !== false ||
-                    strpos( $host, '127.0.0.1' ) !== false ||
-                    strpos( $host, '.local' ) !== false ||
-                    strpos( $host, '.test' ) !== false;
-        
-        if ( $is_local ) {
-            echo '<div class="notice notice-warning inline"><p>';
-            echo esc_html__( 'You are on a local development environment. Marketo forms may not load properly due to domain restrictions. A preview mode will be shown instead.', 'marketo-form-block' );
-            echo '</p><p>';
-            echo esc_html__( 'For full functionality, deploy to a production domain that is registered with your Marketo account.', 'marketo-form-block' );
-            echo '</p></div>';
-        }
     }
     
     /**

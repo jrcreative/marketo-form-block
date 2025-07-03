@@ -6,53 +6,17 @@
 
 // Initialize when jQuery is ready
 jQuery(document).ready(function ($) {
-  console.log('[Marketo Debug] jQuery ready, initializing Marketo form handler');
-  
   // Check for global marketo configuration
-  if (typeof marketo !== 'undefined') {
-    console.log('[Marketo Debug] Found global marketo configuration:', marketo);
-  } else {
-    console.warn('[Marketo Debug] No global marketo configuration found');
+  if (typeof marketo === 'undefined') {
     displayError('Marketo configuration not found. Please check your settings.');
     return;
   }
   
   // Check if Marketo Forms API is loaded
   if (typeof MktoForms2 === 'undefined') {
-    console.error('[Marketo Debug] MktoForms2 is not loaded');
     displayError('Marketo Forms API not loaded. Please check if the script is being blocked by your browser.');
     return;
   }
-  
-  console.log('[Marketo Debug] MktoForms2 is loaded');
-  
-  // Log Marketo Forms API version if available
-  if (MktoForms2.version) {
-    console.log('[Marketo Debug] MktoForms2 version:', MktoForms2.version);
-  }
-  
-  // Monitor network requests for Marketo API calls
-  if (window.performance && window.performance.getEntries) {
-    setTimeout(function() {
-      const resources = window.performance.getEntries();
-      const marketoRequests = resources.filter(r => r.name.includes('marketo.com'));
-      console.log('[Marketo Debug] Network requests to Marketo:', marketoRequests.length);
-      
-      marketoRequests.forEach(req => {
-        console.log(`[Marketo Debug] Request: ${req.name}, Duration: ${req.duration}ms, Status: ${req.responseStatus || 'unknown'}`);
-      });
-    }, 3000);
-  }
-  
-  // Add global event listeners for form success
-  document.addEventListener('marketo:form:success', function(event) {
-    console.log('[Marketo Debug] Form submitted successfully', event.detail);
-  });
-  
-  // Add global event listeners for form errors
-  document.addEventListener('marketo:form:error', function(event) {
-    console.error('[Marketo Debug] Form submission error', event.detail);
-  });
   
   // Initialize Marketo forms
   var MKTOFORM_ID_ATTRNAME = "data-id";
@@ -69,7 +33,6 @@ jQuery(document).ready(function ($) {
 
     /* fix inter-form label bug! */
     MktoForms2.whenRendered(function (form) {
-      console.log('[Marketo Debug] Form rendered:', form);
       form.getFormElem().removeAttr("style");
 
       document.querySelectorAll(".mktoHasWidth").forEach(function (el) {
@@ -131,7 +94,6 @@ jQuery(document).ready(function ($) {
     });
 
     MktoForms2.whenReady(function (form) {
-      console.log('[Marketo Debug] Form ready:', form);
       var formEl = form.getFormElem()[0];
 
       form.onValidate(function (builtInValidation) {
@@ -140,7 +102,6 @@ jQuery(document).ready(function ($) {
       });
 
       form.onSuccess(function (values, followUpUrl) {
-        console.log('[Marketo Debug] Form submitted successfully');
         
         // Dispatch custom success event
         dispatchFormSuccessEvent(values, formEl.getAttribute(MKTOFORM_ID_ATTRNAME));
@@ -160,7 +121,6 @@ jQuery(document).ready(function ($) {
 
     /* chain, ensuring only one #mktoForm_nnn exists at a time */
     arrayFrom(config.formIds).forEach(function (formId) {
-      console.log('[Marketo Debug] Loading form ID:', formId);
       var loadForm = MktoForms2.loadForm.bind(
           MktoForms2,
           config.podId,
@@ -189,10 +149,7 @@ jQuery(document).ready(function ($) {
 
   // Initialize the forms
   if (mktoFormConfig.formIds.length > 0) {
-    console.log('[Marketo Debug] Initializing forms with config:', mktoFormConfig);
     mktoFormChain(mktoFormConfig);
-  } else {
-    console.warn('[Marketo Debug] No Marketo forms found on page');
   }
 });
 
