@@ -9,6 +9,7 @@ const { __ } = wp.i18n;
 const { registerBlockType } = wp.blocks;
 const {
     InspectorControls,
+    PanelColorSettings,
 } = wp.blockEditor;
 const {
     PanelBody,
@@ -52,6 +53,9 @@ registerBlockType('marketo-form-block/form', {
             type: 'boolean',
             default: true,
         },
+        accentColor: {
+            type: 'string',
+        },
     },
     
     /**
@@ -66,6 +70,7 @@ registerBlockType('marketo-form-block/form', {
             errorMessage,
             customCSS,
             disableDefaultStyles,
+            accentColor,
         } = attributes;
         
         return [
@@ -113,6 +118,17 @@ registerBlockType('marketo-form-block/form', {
                         rows={8}
                     />
                 </PanelBody>
+                <PanelColorSettings
+                    title={__('Accent Color', 'marketo-form-block')}
+                    initialOpen={false}
+                    colorSettings={[
+                        {
+                            value: accentColor,
+                            onChange: (color) => setAttributes({ accentColor: color }),
+                            label: __('Accent Color', 'marketo-form-block'),
+                        },
+                    ]}
+                />
             </InspectorControls>,
             
             // Block preview in editor

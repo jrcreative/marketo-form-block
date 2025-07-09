@@ -56,8 +56,16 @@ jQuery(document).ready(function ($) {
         labelEl
       ) {
         var forEl = formEl.querySelector('[id="' + labelEl.htmlFor + '"]');
-        if (forEl) {
+        if (forEl && forEl.tagName !== "SELECT") {
           labelEl.htmlFor = forEl.id = forEl.id + rando;
+
+          // Wrap label and input for Material Design styling
+          var wrapper = document.createElement("div");
+          wrapper.className = "form-field-wrapper";
+          var fieldParent = forEl.parentElement;
+          fieldParent.insertBefore(wrapper, forEl);
+          wrapper.appendChild(forEl);
+          wrapper.appendChild(labelEl);
         }
       });
 
@@ -67,30 +75,46 @@ jQuery(document).ready(function ($) {
           .parentElement.parentElement.classList.add("radio-list-fix");
       }
 
+      // Add a class to the parent of select elements for styling
+      arrayFrom(formEl.querySelectorAll("select")).forEach(function (selectEl) {
+        selectEl.parentElement.classList.add("marketo-select-wrapper");
+      });
+
       Array.prototype.slice
         .call(document.querySelectorAll(".mktoField"))
         .forEach(function (el) {
           el.addEventListener("focus", (event) => {
-            event.target.parentElement.parentElement.classList.add(
+            event.target.parentElement.classList.add(
               "form-field--is-active"
             );
           });
 
           el.addEventListener("blur", (event) => {
-            event.target.parentElement.parentElement.classList.remove(
+            event.target.parentElement.classList.remove(
               "form-field--is-active"
             );
             if (event.target.value === "") {
-              event.target.parentElement.parentElement.classList.remove(
+              event.target.parentElement.classList.remove(
                 "form-field--is-filled"
               );
             } else {
-              event.target.parentElement.parentElement.classList.add(
+              event.target.parentElement.classList.add(
                 "form-field--is-filled"
               );
             }
           });
         });
+
+      // Remove default Marketo button styling
+      var button = formEl.querySelector(".mktoButton");
+      if (button) {
+        button.classList.remove("mktoButton");
+        var wrapper = button.parentElement;
+        if (wrapper && wrapper.classList.contains("mktoButtonWrap")) {
+          wrapper.classList.remove("mktoButtonWrap", "mktoDownloadButton");
+          wrapper.removeAttribute("style");
+        }
+      }
     });
 
     MktoForms2.whenReady(function (form) {
@@ -102,20 +126,28 @@ jQuery(document).ready(function ($) {
       });
 
       form.onSuccess(function (values, followUpUrl) {
-        
+        var formEl = form.getFormElem()[0];
+        var redirectUrl = formEl.getAttribute('data-link');
+        var confirmationType = formEl.getAttribute('data-confirmation-type');
+
         // Dispatch custom success event
         dispatchFormSuccessEvent(values, formEl.getAttribute(MKTOFORM_ID_ATTRNAME));
-        
-        if (formEl.getAttribute("data-confirmation-type") === "message") {
+
+        // If confirmation type is message, show the message and prevent redirect.
+        if (confirmationType === 'message') {
           form.getFormElem().hide();
-          form.getFormElem()[0].nextElementSibling.style.display = "block";
+          formEl.nextElementSibling.style.display = 'block';
+          return false;
         }
 
-        if (formEl.getAttribute("data-confirmation-type") === "redirect") {
-          location.href = formEl.getAttribute("data-link");
+        // If a custom redirect URL is provided, perform the redirect.
+        if (confirmationType === 'redirect' && redirectUrl) {
+          window.location.href = redirectUrl;
+          return false; // Prevent Marketo's default behavior.
         }
 
-        return false;
+        // Fallback to Marketo's default behavior.
+        return true;
       });
     });
 

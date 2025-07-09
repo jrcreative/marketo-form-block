@@ -60,6 +60,9 @@ class Marketo_Form_Block_Core {
         
         // Add security headers
         add_action( 'send_headers', array( $this, 'add_security_headers' ) );
+        
+        // Add Customizer settings
+        add_action( 'customize_register', array( $this, 'register_customizer_settings' ) );
     }
     
     /**
@@ -91,6 +94,12 @@ class Marketo_Form_Block_Core {
             'style'         => 'marketo-form-block-style',
             'render_callback' => array( $this, 'render_marketo_form_block' ),
             'api_version' => 2, // Use the latest API version for better security
+            'supports'      => array(
+                'color' => array(
+                    'background' => true,
+                    'text' => true,
+                ),
+            ),
             'attributes'    => array(
                 'formId' => array(
                     'type' => 'string',
@@ -121,6 +130,9 @@ class Marketo_Form_Block_Core {
                     'type' => 'boolean',
                     'default' => true,
                     'description' => __('Disable default Marketo styles', 'marketo-form-block'),
+                ),
+                'accentColor' => array(
+                    'type' => 'string',
                 ),
             ),
         ) );
@@ -233,10 +245,13 @@ class Marketo_Form_Block_Core {
      * @param array $attributes Block attributes.
      * @return string Block output.
      */
-    public function render_marketo_form_block( $attributes ) {
+    public function render_marketo_form_block( $attributes, $content, $block ) {
         // Sanitize all block attributes
         $form_id = isset( $attributes['formId'] ) ? sanitize_text_field( $attributes['formId'] ) : '';
         $redirect_url = isset( $attributes['redirectUrl'] ) ? esc_url_raw( $attributes['redirectUrl'] ) : '';
+        if ( ! empty( $redirect_url ) && substr( $redirect_url, 0, 1 ) === '/' ) {
+            $redirect_url = site_url( $redirect_url );
+        }
         $success_message = isset( $attributes['successMessage'] ) ? wp_kses_post( $attributes['successMessage'] ) : '';
         $error_message = isset( $attributes['errorMessage'] ) ? wp_kses_post( $attributes['errorMessage'] ) : '';
         $custom_css = isset( $attributes['customCSS'] ) ? wp_strip_all_tags( $attributes['customCSS'] ) : '';
@@ -256,9 +271,24 @@ class Marketo_Form_Block_Core {
         // Generate a unique ID for this form instance
         $form_container_id = 'mkto-form-' . uniqid();
         
+        $wrapper_attributes = get_block_wrapper_attributes();
+
+        // Get accent color
+        $accent_color_slug = isset( $attributes['accentColor'] ) ? $attributes['accentColor'] : '';
+        $accent_color = $this->get_color_value( $accent_color_slug, '#007cba' );
+        if ( ! empty( $accent_color ) ) {
+            $wrapper_attributes .= ' style="--marketo-accent-color: ' . esc_attr( $accent_color ) . ';"';
+        }
+
         // Start output buffering
         ob_start();
         
+        // Global Custom CSS from Customizer
+        $global_css = get_theme_mod( 'marketo_form_block_custom_css', '' );
+        if ( ! empty( $global_css ) ) {
+            echo '<style type="text/css" id="marketo-global-custom-css">' . wp_strip_all_tags( $global_css ) . '</style>';
+        }
+
         // Custom CSS if provided
         if ( ! empty( $custom_css ) ) {
             // Custom CSS should not be escaped with esc_html as it breaks the CSS
@@ -271,7 +301,7 @@ class Marketo_Form_Block_Core {
         
         // On production, use the direct HTML approach with data attributes
         ?>
-        <div id="<?php echo esc_attr($form_container_id); ?>" class="marketo-form-container">
+        <div id="<?php echo esc_attr($form_container_id); ?>" <?php echo $wrapper_attributes; ?>>
             <form
                 id="mktoForm_<?php echo esc_attr($form_id); ?>"
                 class="mktoForm"
@@ -624,6 +654,55 @@ class Marketo_Form_Block_Core {
         }
         
         return $input;
+    }
+
+    /**
+     * Register Customizer settings for the plugin.
+     *
+     * @param WP_Customize_Manager $wp_customize The Customizer object.
+     */
+    public function register_customizer_settings( $wp_customize ) {
+        $wp_customize->add_section( 'marketo_form_block_defaults', array(
+            'title'    => __( 'Marketo Form Block Defaults', 'marketo-form-block' ),
+            'priority' => 30,
+        ) );
+
+        // Global Custom CSS
+        $wp_customize->add_setting( 'marketo_form_block_custom_css', array(
+            'default'           => '',
+            'sanitize_callback' => 'wp_strip_all_tags',
+        ) );
+        $wp_customize->add_control( 'marketo_form_block_custom_css', array(
+            'label'    => __( 'Global Custom CSS', 'marketo-form-block' ),
+            'section'  => 'marketo_form_block_defaults',
+            'settings' => 'marketo_form_block_custom_css',
+            'type'     => 'textarea',
+        ) );
+    }
+
+    /**
+     * Get the hex value for a color slug.
+     *
+     * @param string $slug The color slug.
+     * @param string $default The default color.
+     * @return string The hex color value.
+     */
+    private function get_color_value( $slug, $default ) {
+        if ( empty( $slug ) ) {
+            return $default;
+        }
+        if ( preg_match( '/^#([a-f0-9]{3}){1,2}$/i', $slug ) ) {
+            return $slug;
+        }
+        $color_palette = get_theme_support( 'editor-color-palette' );
+        if ( ! empty( $color_palette[0] ) ) {
+            foreach ( $color_palette[0] as $color ) {
+                if ( $color['slug'] === $slug ) {
+                    return $color['color'];
+                }
+            }
+        }
+        return $default;
     }
 }
 
