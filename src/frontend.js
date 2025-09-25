@@ -1,237 +1,242 @@
 /**
- * Marketo Form Block - Frontend JavaScript
+ * Marketo Form Block - Frontend JavaScript for Material Design Styling
  *
- * @package Marketo_Form_Block
+ * This script waits for Marketo forms to be ready, then manipulates the
+ * DOM to apply a Material Design "floating label" effect and a custom
+ * multi-select widget.
  */
+( function () {
+	// Ensure the Marketo Forms 2 API is available
+	if ( typeof MktoForms2 === 'undefined' ) {
+		console.error( 'Marketo Forms 2 API not found.' );
+		return;
+	}
 
-// Initialize when jQuery is ready
-jQuery(document).ready(function ($) {
-  // Check for global marketo configuration
-  if (typeof marketo === 'undefined') {
-    displayError('Marketo configuration not found. Please check your settings.');
-    return;
-  }
-  
-  // Check if Marketo Forms API is loaded
-  if (typeof MktoForms2 === 'undefined') {
-    displayError('Marketo Forms API not loaded. Please check if the script is being blocked by your browser.');
-    return;
-  }
-  
-  // Initialize Marketo forms
-  var MKTOFORM_ID_ATTRNAME = "data-id";
-  var mktoFormConfig = {
-    podId: marketo.url,
-    munchkinId: marketo.api,
-    formIds: Array.prototype.slice
-      .call(document.querySelectorAll(".mktoForm"))
-      .map((a) => a.getAttribute(MKTOFORM_ID_ATTRNAME)),
-  };
+	/**
+	 * Removes unwanted Marketo elements, classes, and styles from a given node.
+	 * @param {HTMLElement} node The element to clean.
+	 */
+	function cleanNode( node ) {
+		// Remove unwanted elements
+		node.querySelectorAll( 'div.mktoGutter, div.mktoOffset' ).forEach(
+			( el ) => el.remove()
+		);
+		if (
+			node.matches &&
+			node.matches( 'div.mktoGutter, div.mktoOffset' )
+		) {
+			node.remove();
+			return; // Element is gone, no more to do
+		}
 
-  function mktoFormChain(config) {
-    var arrayFrom = Function.prototype.call.bind(Array.prototype.slice);
+		// Remove unwanted classes and styles from the node itself and its children
+		const elementsToClean = [];
+		if (
+			node.matches &&
+			node.matches( '.mktoHasWidth, .mktoFormCol, .mktoButton' )
+		) {
+			elementsToClean.push( node );
+		}
+		node.querySelectorAll(
+			'.mktoHasWidth, .mktoFormCol, .mktoButton'
+		).forEach( ( el ) => elementsToClean.push( el ) );
 
-    /* fix inter-form label bug! */
-    MktoForms2.whenRendered(function (form) {
-      form.getFormElem().removeAttr("style");
+		elementsToClean.forEach( ( el ) => {
+			el.removeAttribute( 'style' );
+			el.classList.remove( 'mktoHasWidth' );
+			el.classList.remove( 'mktoFormCol' );
+			if ( el.tagName === 'BUTTON' ) {
+				el.classList.remove( 'mktoButton' );
+				el.classList.add( 'button' );
+			}
+		} );
+	}
 
-      document.querySelectorAll(".mktoHasWidth").forEach(function (el) {
-        el.removeAttribute("style");
-      });
+	/**
+	 * Applies Material Design styling to a single form field.
+	 * @param {HTMLElement} field The input, select, or textarea element.
+	 */
+	function styleFormField( field ) {
+		// Exclude fields that are part of a checkbox/radio list
+		if (
+			field.closest( '.mktoCheckboxList' ) ||
+			field.closest( '.mktoRadioList' )
+		) {
+			return;
+		}
 
-      var formEl = form.getFormElem()[0],
-        rando = "_" + new Date().getTime() + Math.random();
+		const fieldWrap = field.closest( '.mktoFieldWrap' );
+		if (
+			! fieldWrap ||
+			fieldWrap.classList.contains( 'form-field-wrapper' )
+		) {
+			return; // Already styled
+		}
 
-      Array.prototype.slice
-        .call(
-          document.querySelectorAll(
-            "#mktoForms2ThemeStyle, #mktoForms2BaseStyle, .mktoAsterix, .mktoOffset, .mktoGutter, .mktoClear"
-          )
-        )
-        .forEach(function (el) {
-          el.parentNode.removeChild(el);
-        });
+		fieldWrap.classList.add( 'form-field-wrapper' );
 
-      arrayFrom(formEl.querySelectorAll("label[for]")).forEach(function (
-        labelEl
-      ) {
-        var forEl = formEl.querySelector('[id="' + labelEl.htmlFor + '"]');
-        if (forEl && forEl.tagName !== "SELECT") {
-          labelEl.htmlFor = forEl.id = forEl.id + rando;
+		const label = fieldWrap.querySelector( '.mktoLabel' );
+		if ( ! label ) return;
 
-          // Wrap label and input for Material Design styling
-          var wrapper = document.createElement("div");
-          wrapper.className = "form-field-wrapper";
-          var fieldParent = forEl.parentElement;
-          fieldParent.insertBefore(wrapper, forEl);
-          wrapper.appendChild(forEl);
-          wrapper.appendChild(labelEl);
-        }
-      });
+		// Handle multi-select fields with a custom widget
+		if ( field.tagName === 'SELECT' && field.multiple ) {
+			createMultiSelect( field, fieldWrap );
+		} else {
+			// Handle standard fields
+			const updateFilledState = () => {
+				const hasValue =
+					field.tagName === 'SELECT'
+						? field.value && field.value !== ''
+						: field.value && field.value.trim() !== '';
+				fieldWrap.classList.toggle( 'form-field--is-filled', hasValue );
+			};
 
-      if (document.querySelector(".mktoRadioList")) {
-        document
-          .querySelector(".mktoRadioList")
-          .parentElement.parentElement.classList.add("radio-list-fix");
-      }
+			field.addEventListener( 'focus', () =>
+				fieldWrap.classList.add( 'form-field--is-active' )
+			);
+			field.addEventListener( 'blur', () => {
+				fieldWrap.classList.remove( 'form-field--is-active' );
+				updateFilledState();
+			} );
 
-      // Add a class to the parent of select elements for styling
-      arrayFrom(formEl.querySelectorAll("select")).forEach(function (selectEl) {
-        selectEl.parentElement.classList.add("marketo-select-wrapper");
-      });
+			// Check initial state for pre-filled values
+			updateFilledState();
+		}
+	}
 
-      Array.prototype.slice
-        .call(document.querySelectorAll(".mktoField"))
-        .forEach(function (el) {
-          el.addEventListener("focus", (event) => {
-            event.target.parentElement.classList.add(
-              "form-field--is-active"
-            );
-          });
+	/**
+	 * Applies Material Design styling and behavior to a Marketo form.
+	 * @param {MktoForm} form The Marketo form object.
+	 */
+	function applyMaterialStyling( form ) {
+		const formEl = form.getFormElem()[ 0 ];
 
-          el.addEventListener("blur", (event) => {
-            event.target.parentElement.classList.remove(
-              "form-field--is-active"
-            );
-            if (event.target.value === "") {
-              event.target.parentElement.classList.remove(
-                "form-field--is-filled"
-              );
-            } else {
-              event.target.parentElement.classList.add(
-                "form-field--is-filled"
-              );
-            }
-          });
-        });
+		// Initial clean of the form
+		cleanNode( formEl );
 
-      // Remove default Marketo button styling
-      var button = formEl.querySelector(".mktoButton");
-      if (button) {
-        button.classList.remove("mktoButton");
-        var wrapper = button.parentElement;
-        if (wrapper && wrapper.classList.contains("mktoButtonWrap")) {
-          wrapper.classList.remove("mktoButtonWrap", "mktoDownloadButton");
-          wrapper.removeAttribute("style");
-        }
-      }
-    });
+		// Initial styling of all fields
+		const fieldSelector =
+			'input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="password"], input[type="date"], input[type="number"], textarea, select';
+		formEl.querySelectorAll( fieldSelector ).forEach( styleFormField );
 
-    MktoForms2.whenReady(function (form) {
-      var formEl = form.getFormElem()[0];
+		// Use MutationObserver to style fields and clean nodes added later
+		const observer = new MutationObserver( ( mutations ) => {
+			mutations.forEach( ( mutation ) => {
+				if ( mutation.addedNodes ) {
+					mutation.addedNodes.forEach( ( node ) => {
+						if ( node.nodeType === 1 ) {
+							// Element node
+							cleanNode( node );
+							if ( node.matches( fieldSelector ) ) {
+								styleFormField( node );
+							}
+							node.querySelectorAll( fieldSelector ).forEach(
+								styleFormField
+							);
+						}
+					} );
+				}
+			} );
+		} );
 
-      form.onValidate(function (builtInValidation) {
-        if (!builtInValidation) return;
-        form.submittable(true);
-      });
+		observer.observe( formEl, { childList: true, subtree: true } );
+	}
 
-      form.onSuccess(function (values, followUpUrl) {
-        var formEl = form.getFormElem()[0];
-        var redirectUrl = formEl.getAttribute('data-link');
-        var confirmationType = formEl.getAttribute('data-confirmation-type');
+	/**
+	 * Creates a custom multi-select widget to replace the browser default.
+	 * @param {HTMLSelectElement} selectEl The original select element.
+	 * @param {HTMLElement} wrapper The field wrapper element.
+	 */
+	function createMultiSelect( selectEl, wrapper ) {
+		selectEl.style.display = 'none'; // Hide original
 
-        // Dispatch custom success event
-        dispatchFormSuccessEvent(values, formEl.getAttribute(MKTOFORM_ID_ATTRNAME));
+		const container = document.createElement( 'div' );
+		container.className = 'multiselect-container';
+		wrapper.appendChild( container );
 
-        // If confirmation type is message, show the message and prevent redirect.
-        if (confirmationType === 'message') {
-          form.getFormElem().hide();
-          formEl.nextElementSibling.style.display = 'block';
-          return false;
-        }
+		const selectedDisplay = document.createElement( 'div' );
+		selectedDisplay.className = 'multiselect-selected';
+		container.appendChild( selectedDisplay );
 
-        // If a custom redirect URL is provided, perform the redirect.
-        if (confirmationType === 'redirect' && redirectUrl) {
-          window.location.href = redirectUrl;
-          return false; // Prevent Marketo's default behavior.
-        }
+		const dropdown = document.createElement( 'div' );
+		dropdown.className = 'multiselect-dropdown';
+		container.appendChild( dropdown );
 
-        // Fallback to Marketo's default behavior.
-        return true;
-      });
-    });
+		const options = Array.from( selectEl.options );
 
-    /* chain, ensuring only one #mktoForm_nnn exists at a time */
-    arrayFrom(config.formIds).forEach(function (formId) {
-      var loadForm = MktoForms2.loadForm.bind(
-          MktoForms2,
-          config.podId,
-          config.munchkinId,
-          formId
-        ),
-        formEls = arrayFrom(
-          document.querySelectorAll(
-            "[" + MKTOFORM_ID_ATTRNAME + '="' + formId + '"]'
-          )
-        );
+		function updateSelectedDisplay() {
+			selectedDisplay.innerHTML = '';
+			options.forEach( ( option ) => {
+				if ( option.selected ) {
+					const chip = document.createElement( 'div' );
+					chip.className = 'multiselect-chip';
+					chip.textContent = option.textContent;
 
-      (function loadFormCb(formEls) {
-        var formEl = formEls.shift();
-        formEl.id = "mktoForm_" + formId;
+					const removeBtn = document.createElement( 'span' );
+					removeBtn.className = 'multiselect-chip-remove';
+					removeBtn.textContent = '×';
+					removeBtn.addEventListener( 'click', ( e ) => {
+						e.stopPropagation();
+						option.selected = false;
+						updateSelectedDisplay();
+						updateDropdownOptions();
+					} );
 
-        loadForm(function (form) {
-          formEl.id = "";
-          if (formEls.length) {
-            loadFormCb(formEls);
-          }
-        });
-      })(formEls);
-    });
-  }
+					chip.appendChild( removeBtn );
+					selectedDisplay.appendChild( chip );
+				}
+			} );
+			wrapper.classList.toggle(
+				'form-field--is-filled',
+				selectEl.selectedOptions.length > 0
+			);
+		}
 
-  // Initialize the forms
-  if (mktoFormConfig.formIds.length > 0) {
-    mktoFormChain(mktoFormConfig);
-  }
-});
+		function updateDropdownOptions() {
+			dropdown
+				.querySelectorAll( '.multiselect-option' )
+				.forEach( ( optEl ) => {
+					const option = options.find(
+						( o ) => o.value === optEl.dataset.value
+					);
+					optEl.classList.toggle( 'is-selected', option.selected );
+				} );
+		}
 
-/**
- * Display error message in all form containers
- *
- * @param {string} message Error message to display
- */
-function displayError(message) {
-  const containers = document.querySelectorAll('.marketo-form-container');
-  containers.forEach(container => {
-    container.innerHTML = `
-      <div class="marketo-form-error" style="color: #e74c3c; border: 1px solid #e74c3c; padding: 15px; background: #fdf3f2;">
-        <p><strong>Error:</strong> ${message}</p>
-        <p>Please check the browser console for more details.</p>
-      </div>
-    `;
-  });
-}
+		options.forEach( ( option ) => {
+			const optionEl = document.createElement( 'div' );
+			optionEl.className = 'multiselect-option';
+			optionEl.textContent = option.textContent;
+			optionEl.dataset.value = option.value;
+			optionEl.addEventListener( 'click', () => {
+				option.selected = ! option.selected;
+				updateSelectedDisplay();
+				updateDropdownOptions();
+			} );
+			dropdown.appendChild( optionEl );
+		} );
 
-/**
- * Dispatch a custom event when a Marketo form is submitted successfully
- *
- * @param {Object} values Form values
- * @param {string} formId Form ID
- */
-window.dispatchFormSuccessEvent = function(values, formId) {
-  const event = new CustomEvent('marketo:form:success', {
-    detail: {
-      values: values,
-      formId: formId
-    }
-  });
-  
-  document.dispatchEvent(event);
-};
+		selectedDisplay.addEventListener( 'click', () => {
+			dropdown.classList.toggle( 'is-open' );
+			wrapper.classList.toggle(
+				'form-field--is-active',
+				dropdown.classList.contains( 'is-open' )
+			);
+		} );
 
-/**
- * Dispatch a custom event when a Marketo form submission fails
- *
- * @param {Object} error Error object
- * @param {string} formId Form ID
- */
-window.dispatchFormErrorEvent = function(error, formId) {
-  const event = new CustomEvent('marketo:form:error', {
-    detail: {
-      error: error,
-      formId: formId
-    }
-  });
-  
-  document.dispatchEvent(event);
-};
+		document.addEventListener( 'click', ( e ) => {
+			if ( ! container.contains( e.target ) ) {
+				dropdown.classList.remove( 'is-open' );
+				wrapper.classList.remove( 'form-field--is-active' );
+			}
+		} );
+
+		updateSelectedDisplay();
+		updateDropdownOptions();
+	}
+
+	// Use the whenReady hook to apply styling to each form as it loads.
+	MktoForms2.whenReady( function ( form ) {
+		applyMaterialStyling( form );
+	} );
+} )();

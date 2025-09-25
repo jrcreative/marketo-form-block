@@ -3,87 +3,122 @@
  */
 
 .wp-block-marketo-form-block-form {
-    padding: 20px;
+    // Default theme variables. These can be overridden by a theme's stylesheet.
+    --marketo-background-color: #ffffff;
+    --marketo-text-color: #333333;
+    --marketo-accent-color: #007cba;
+    --marketo-heading-color: #333333;
     
+    background-color: var(--marketo-background-color);
+    color: var(--marketo-text-color);
+
+    *, ::after, ::before {
+        box-sizing: border-box;
+    }
+
     .mktoForm {
         width: 100% !important;
+        
+        .mktoFieldWrap {
+            float: none;
+        }
 
-        .mktoField::placeholder {
-            color: transparent;
+        label {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: start;
+        }
+
+        .mktoAsterix {
+            color: red;
         }
 
         .form-field-wrapper {
             position: relative;
-            margin-top: 20px;
-            background-color: var(--wp--preset--color--textonbutton);
+            margin-top: 1.5em;
+            background-color: var(--marketo-background-color);
 
             .mktoField {
                 width: 100% !important;
-                color: var(--wp--preset--color--contrastcolor0);
+                color: var(--marketo-text-color);
                 border: 1px solid #ccc;
                 border-radius: 7px;
-                padding: 15px 10px;
-                background-color: transparent;
-                font-size: 16px;
+                padding: 15px;
+                background-color: var(--marketo-background-color);
+                font-size: 1em;
                 transition: border-color 0.2s;
                 position: relative;
                 z-index: 1;
 
                 &:focus {
                     outline: none;
-                    border-color: var(--marketo-accent-color, #007cba);
+                    border-color: var(--marketo-accent-color);
                 }
+            }
+
+            .mktoField::placeholder {
+                color: transparent;
             }
 
             .mktoLabel {
                 position: absolute;
-                top: 16px;
+                top: 50%;
+                transform: translateY(-50%);
                 left: 12px;
-                font-size: 16px;
-                color: #999;
+                font-size: 1em;
+                color: var(--marketo-text-color);
                 transition: all 0.2s ease-in-out;
                 pointer-events: none;
                 z-index: 2;
-                background-color: inherit;
+                background-color: var(--marketo-background-color);
                 padding: 0 5px;
+                white-space: nowrap;
+                display: flex;
+                flex-direction: row-reverse;
+                gap: 4px;
             }
 
             &.form-field--is-active .mktoLabel,
-            &.form-field--is-filled .mktoLabel {
-                top: -8px;
+            &.form-field--is-filled .mktoLabel{
+                top: 0;
                 left: 10px;
-                font-size: 12px;
-                color: var(--marketo-accent-color, #007cba);
+                font-size: 0.8em;
             }
         }
 
         .mktoButtonRow {
             margin-top: 20px;
+
+            .mktoButtonWrap {
+                margin-left: 0 !important;
+            }
         }
 
-        .mktoButton {
-            background-color: #007cba;
+        .button {
+            display: inline-block;
+            background-color: var(--marketo-accent-color);
             border: none;
             color: #fff;
             padding: 10px 15px;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 1em;
             cursor: pointer;
+            text-align: center;
             
             &:hover {
-                background-color: #0070a7;
+                opacity: 0.9;
             }
         }
 
         .mktoError {
             .mktoErrorMsg {
                 color: #cc1818;
-                font-size: 12px;
+                font-size: 0.8em;
                 margin-top: 5px;
             }
         }
 
-        select.mktoField {
+        select.mktoField, textarea.mktoField {
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
@@ -92,20 +127,406 @@
             background-repeat: no-repeat;
             background-position: right 10px center;
             background-size: 12px;
+        }
+
+        textarea.mktoField {
+            background-image: none;
+        }
+        select[multiple].mktoField {
+            display: none;
+        }
+
+        .multiselect-container {
+            position: relative;
+            width: 100%;
+            margin-top: 1.5em;
+        }
+
+        .multiselect-selected {
+            border: 1px solid #ccc;
             border-radius: 7px;
-            background-color: inherit;
-            border-color: #ccc;
-            color: var(--wp--preset--color--contrastcolor0);
+            padding: 10px;
+            cursor: pointer;
+            min-height: 50px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+            transition: border-color 0.2s;
+            background-color: var(--marketo-background-color);
+        }
+
+        .multiselect-chip {
+            background-color: var(--marketo-accent-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .multiselect-chip-remove {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .multiselect-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 7px 7px;
+            background-color: var(--marketo-background-color);
+            z-index: 10;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .multiselect-dropdown.is-open {
+            display: block;
+        }
+
+        .form-field--is-active .multiselect-selected {
+            border-color: var(--marketo-accent-color);
+        }
+
+        .multiselect-option {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .multiselect-option:hover {
+            background-color: #f0f0f066;
+        }
+
+        .multiselect-option.is-selected {
+            background-color: var(--marketo-accent-color);
+            color: white;
+        }
+        .mktoFormTitle {
+            color: var(--marketo-heading-color);
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--marketo-heading-color);
+        }
+  
+        .mktoCheckboxList, .mktoRadioList {
+            .form-field-wrapper {
+                display: flex;
+                align-items: start;
+
+                input[type="checkbox"], input[type="radio"] {
+                    margin-right: 10px;
+                    -webkit-appearance: none;
+                    -moz-appearance: none;
+                    appearance: none;
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid var(--marketo-text-color);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: background-color 0.2s, border-color 0.2s;
+                    position: relative;
+                    margin-top: 6px;
+
+                    &:checked {
+                        background-color: var(--marketo-accent-color);
+                        border-color: var(--marketo-accent-color);
+                    }
+
+                    &:checked::after {
+                        content: '';
+                        position: absolute;
+                        left: 5px;
+                        top: 1px;
+                        width: 6px;
+                        height: 12px;
+                        border: solid white;
+                        border-width: 0 2px 2px 0;
+                        transform: rotate(45deg);
+                    }
+                }
+
+                input[type="radio"] {
+                    border-radius: 50%;
+
+                    &:checked::after {
+                        left: 3px;
+                        top: 3px;
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 50%;
+                        background: white;
+                        border: none;
+                        transform: none;
+                    }
+                }
+            }
+        }
+
+        .mktoAsterix {
+            color: red;
+        }
+
+        .form-field-wrapper {
+            position: relative;
+            margin-top: 1.5em;
+            background-color: var(--marketo-background-color);
+
+            .mktoField {
+                width: 100% !important;
+                color: var(--marketo-text-color);
+                border: 1px solid #ccc;
+                border-radius: 7px;
+                padding: 15px;
+                background-color: var(--marketo-background-color);
+                font-size: 1em;
+                transition: border-color 0.2s;
+                position: relative;
+                z-index: 1;
+
+                &:focus {
+                    outline: none;
+                    border-color: var(--marketo-accent-color);
+                }
+            }
+
+            .mktoField::placeholder {
+                color: transparent;
+            }
+
+            .mktoLabel {
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                left: 12px;
+                font-size: 1em;
+                color: var(--marketo-text-color);
+                transition: all 0.2s ease-in-out;
+                pointer-events: none;
+                z-index: 2;
+                background-color: var(--marketo-background-color);
+                padding: 0 5px;
+                white-space: nowrap;
+                display: flex;
+                flex-direction: row-reverse;
+                gap: 4px;
+            }
+
+            &.form-field--is-active .mktoLabel {
+                top: 0;
+                left: 10px;
+                font-size: 0.8em;
+                color: var(--marketo-accent-color);
+            }
+        }
+
+        .mktoButtonRow {
+            margin-top: 20px;
+        }
+
+        .button {
+            display: inline-block;
+            background-color: var(--marketo-accent-color);
+            border: none;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 1em;
+            cursor: pointer;
+            text-align: center;
+            
+            &:hover {
+                opacity: 0.9;
+            }
+        }
+
+        .mktoError {
+            .mktoErrorMsg {
+                color: #cc1818;
+                font-size: 0.8em;
+                margin-top: 5px;
+            }
+        }
+
+        select.mktoField, textarea.mktoField {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding-right: 30px;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%208l5%205%205-5z%22%20fill%3D%22%23333%22/%3E%3C/svg%3E');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+        }
+
+        textarea.mktoField {
+            background-image: none;
+        }
+        select[multiple].mktoField {
+            display: none;
+        }
+
+        .multiselect-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .form-field-wrapper .multiselect-container {
+            margin-top: 1.5em;
+        }
+
+        .multiselect-selected {
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            padding: 10px;
+            cursor: pointer;
+            min-height: 50px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+            transition: border-color 0.2s;
+            background-color: var(--marketo-background-color);
+        }
+
+        .multiselect-chip {
+            background-color: var(--marketo-accent-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .multiselect-chip-remove {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .multiselect-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 7px 7px;
+            background-color: var(--marketo-background-color);
+            z-index: 10;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .multiselect-dropdown.is-open {
+            display: block;
+        }
+
+        .form-field--is-active .multiselect-selected {
+            border-color: var(--marketo-accent-color);
+        }
+
+        .multiselect-option {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .multiselect-option:hover {
+            background-color: #f0f0f066;
+        }
+
+        .multiselect-option.is-selected {
+            background-color: var(--marketo-accent-color);
+            color: white;
+        }
+        .mktoFormTitle {
+            color: var(--marketo-heading-color);
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--marketo-heading-color);
+        }
+  
+        .mktoCheckboxList, .mktoRadioList {
+            .mktoFieldWrap {
+                display: flex;
+                align-items: start;
+
+                input[type="checkbox"], input[type="radio"] {
+                    margin-right: 10px;
+                    -webkit-appearance: none;
+                    -moz-appearance: none;
+                    appearance: none;
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid var(--marketo-text-color);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: background-color 0.2s, border-color 0.2s;
+                    position: relative;
+                    margin-top: 6px;
+
+                    &:checked {
+                        background-color: var(--marketo-accent-color);
+                        border-color: var(--marketo-accent-color);
+                    }
+
+                    &:checked::after {
+                        content: '';
+                        position: absolute;
+                        left: 5px;
+                        top: 1px;
+                        width: 6px;
+                        height: 12px;
+                        border: solid white;
+                        border-width: 0 2px 2px 0;
+                        transform: rotate(45deg);
+                    }
+                }
+
+                input[type="radio"] {
+                    border-radius: 50%;
+
+                    &:checked::after {
+                        left: 3px;
+                        top: 3px;
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 50%;
+                        background: white;
+                        border: none;
+                        transform: none;
+                    }
+                }
+            }
         }
     }
 }
 
 .marketo-form-success {
+    display: none; // Hidden by default
     padding: 15px;
     background-color: #ecf7ed;
     border-left: 4px solid #46b450;
     margin: 20px 0;
     color: #333;
+}
+
+// When the form is successfully submitted, hide the form and show the message
+.wp-block-marketo-form-block-form.marketo-form-is-success {
+    .mktoForm {
+        display: none;
+    }
+    .marketo-form-success {
+        display: block;
+    }
 }
 
 .marketo-form-error {

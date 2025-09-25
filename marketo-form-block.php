@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Marketo Form Block
  * Description: A Gutenberg block for embedding Marketo forms with custom styling options.
- * Version: 1.0.0
+ * Version: 1.1
  * Author: Volume11
  * Author URI: https://volume11.agency
  * Text Domain: marketo-form-block
@@ -38,7 +38,7 @@ define( 'MARKETO_FORM_BLOCK_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MARKETO_FORM_BLOCK_URL', plugin_dir_url( __FILE__ ) );
 
 // Include required files
-require_once MARKETO_FORM_BLOCK_PATH . 'includes/class-marketo-form-block.php';
+require_once MARKETO_FORM_BLOCK_PATH . 'includes/class-marketo-api.php';
 
 /**
  * The core plugin class.
@@ -69,13 +69,17 @@ class Marketo_Form_Block_Core {
      * Add security headers to prevent XSS and other attacks.
      */
     public function add_security_headers() {
-        // Only add these headers on pages with our block
-        global $post;
-        if ( is_singular() && has_block( 'marketo-form-block/form', $post ) ) {
-            // Add Content Security Policy to allow Marketo scripts
-            $marketo_instance = sanitize_text_field( get_option( 'marketo_form_block_instance', 'app-ab33.marketo.com' ) );
-            header( "Content-Security-Policy: script-src 'self' 'unsafe-inline' https://{$marketo_instance}; frame-src 'self' https://{$marketo_instance};" );
+        if ( is_admin() ) {
+            return;
         }
+
+        // Add Content Security Policy to allow Marketo scripts
+        $marketo_instance = sanitize_text_field( get_option( 'marketo_form_block_instance', 'app-ab33.marketo.com' ) );
+        $csp  = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://{$marketo_instance} http://{$marketo_instance} blob:;";
+        $csp .= " worker-src 'self' blob:;";
+        $csp .= " frame-src 'self' https://{$marketo_instance} http://{$marketo_instance};";
+        $csp .= " connect-src 'self' https://{$marketo_instance} http://{$marketo_instance} " . admin_url( 'admin-ajax.php' ) . ";";
+        header( "Content-Security-Policy: " . $csp );
     }
 
     /**
@@ -95,12 +99,15 @@ class Marketo_Form_Block_Core {
             'render_callback' => array( $this, 'render_marketo_form_block' ),
             'api_version' => 2, // Use the latest API version for better security
             'supports'      => array(
-                'color' => array(
-                    'background' => true,
-                    'text' => true,
-                ),
+                'align' => true,
             ),
             'attributes'    => array(
+                'backgroundColor' => array(
+                    'type' => 'string',
+                ),
+                'textColor' => array(
+                    'type' => 'string',
+                ),
                 'formId' => array(
                     'type' => 'string',
                     'default' => '',
@@ -121,17 +128,10 @@ class Marketo_Form_Block_Core {
                     'default' => 'There was an error processing your submission. Please try again.',
                     'description' => __('Message to display if form submission fails', 'marketo-form-block'),
                 ),
-                'customCSS' => array(
-                    'type' => 'string',
-                    'default' => '',
-                    'description' => __('Custom CSS for the form', 'marketo-form-block'),
-                ),
-                'disableDefaultStyles' => array(
-                    'type' => 'boolean',
-                    'default' => true,
-                    'description' => __('Disable default Marketo styles', 'marketo-form-block'),
-                ),
                 'accentColor' => array(
+                    'type' => 'string',
+                ),
+                'headingColor' => array(
                     'type' => 'string',
                 ),
             ),
@@ -171,73 +171,40 @@ class Marketo_Form_Block_Core {
             array(),
             MARKETO_FORM_BLOCK_VERSION
         );
-        
-        // Get Marketo settings
-        $marketo_instance = get_option('marketo_form_block_instance', 'app-ab33.marketo.com');
-        $marketo_instance = preg_replace('#^https?://#', '', $marketo_instance);
-        $marketo_instance = sanitize_text_field($marketo_instance);
-        $munchkin_id = sanitize_text_field(get_option('marketo_form_block_munchkin_id', '041-FSQ-281'));
-        
-        
-        // Check if a Marketo form block is present on the page
-        global $post;
-        $has_marketo_block = false;
-        
-        if (is_singular() && $post) {
-            $has_marketo_block = has_block('marketo-form-block/form', $post);
-            
-            // Also check for the block in reusable blocks
-            if (!$has_marketo_block && has_blocks($post->post_content)) {
-                $blocks = parse_blocks($post->post_content);
-                $has_marketo_block = $this->check_for_marketo_block_recursive($blocks);
-            }
+
+        // Only load scripts on singular pages that contain the block.
+        if ( ! is_singular() || ! has_block( 'marketo-form-block/form' ) ) {
+            return;
         }
-        
-        // Only enqueue scripts if a Marketo form block is present
-        if ($has_marketo_block) {            
-            // Add the Marketo Forms API script to the body (footer)
-            add_action('wp_footer', function() use ($marketo_instance, $munchkin_id) {
-                // Add Marketo Forms API script
-                echo '<script src="https://' . esc_attr($marketo_instance) . '/js/forms2/js/forms2.min.js"></script>';
-                // Add Marketo configuration
-                echo '<script id="marketo-form-block-config-js-extra" type="text/javascript">';
-                echo 'var marketo = {"url":"https://' . esc_js($marketo_instance) . '","api":"' . esc_js($munchkin_id) . '"};';
-                echo '</script>';
-            }, 5); // High priority (low number) to ensure it loads early in the footer
-            
-            // Enqueue our frontend script
-            wp_enqueue_script(
-                'marketo-form-block-frontend',
-                MARKETO_FORM_BLOCK_URL . 'build/frontend.js',
-                array('jquery'), // Add jQuery as a dependency
-                MARKETO_FORM_BLOCK_VERSION,
-                true // Our script can still load in the footer
-            );
-        }
+
+        // Get Marketo settings and sanitize
+        $marketo_instance = get_option( 'marketo_form_block_instance', 'app-ab33.marketo.com' );
+        $marketo_instance = preg_replace( '#^https?://#', '', $marketo_instance );
+        $marketo_instance = sanitize_text_field( $marketo_instance );
+        $munchkin_id      = sanitize_text_field( get_option( 'marketo_form_block_munchkin_id', '041-FSQ-281' ) );
+
+        // Enqueue the Marketo forms API script
+        wp_enqueue_script(
+            'marketo-forms-api',
+            'https://' . esc_attr( $marketo_instance ) . '/js/forms2/js/forms2.min.js',
+            array(),
+            null,
+            true
+        );
+
+        // Enqueue the frontend script for styling hooks
+        wp_enqueue_script(
+            'marketo-form-block-frontend',
+            MARKETO_FORM_BLOCK_URL . 'build/frontend.js',
+            array( 'marketo-forms-api' ), // Depends on the Marketo API script
+            MARKETO_FORM_BLOCK_VERSION,
+            true
+        );
+
+        // The marketo object is no longer needed in the external JS file as the
+        // form loading logic is now handled by an inline script.
     }
     
-    /**
-     * Recursively check for Marketo form blocks in nested blocks
-     *
-     * @param array $blocks Array of blocks
-     * @return bool Whether a Marketo form block was found
-     */
-    private function check_for_marketo_block_recursive($blocks) {
-        foreach ($blocks as $block) {
-            if ($block['blockName'] === 'marketo-form-block/form') {
-                return true;
-            }
-            
-            if (!empty($block['innerBlocks'])) {
-                $found = $this->check_for_marketo_block_recursive($block['innerBlocks']);
-                if ($found) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
 
     /**
      * Server-side rendering of the Marketo form block.
@@ -253,9 +220,6 @@ class Marketo_Form_Block_Core {
             $redirect_url = site_url( $redirect_url );
         }
         $success_message = isset( $attributes['successMessage'] ) ? wp_kses_post( $attributes['successMessage'] ) : '';
-        $error_message = isset( $attributes['errorMessage'] ) ? wp_kses_post( $attributes['errorMessage'] ) : '';
-        $custom_css = isset( $attributes['customCSS'] ) ? wp_strip_all_tags( $attributes['customCSS'] ) : '';
-        $disable_default_styles = isset( $attributes['disableDefaultStyles'] ) ? (bool) $attributes['disableDefaultStyles'] : true;
         
         if ( empty( $form_id ) ) {
             return '<p>' . esc_html__( 'Please specify a Marketo Form ID.', 'marketo-form-block' ) . '</p>';
@@ -266,21 +230,44 @@ class Marketo_Form_Block_Core {
         // Ensure the instance URL doesn't include https:// already
         $marketo_instance = preg_replace('#^https?://#', '', $marketo_instance);
         $marketo_instance = sanitize_text_field( $marketo_instance );
-        $munchkin_id = sanitize_text_field( get_option( 'marketo_form_block_munchkin_id', '041-FSQ-281' ) );
+        $munchkin_id      = sanitize_text_field( get_option( 'marketo_form_block_munchkin_id', '041-FSQ-281' ) );
+
         
         // Generate a unique ID for this form instance
         $form_container_id = 'mkto-form-' . uniqid();
         
         $wrapper_attributes = get_block_wrapper_attributes();
 
-        // Get accent color
+        // Get colors
+        $bg_color_slug = isset( $attributes['backgroundColor'] ) ? $attributes['backgroundColor'] : '';
+        $text_color_slug = isset( $attributes['textColor'] ) ? $attributes['textColor'] : '';
         $accent_color_slug = isset( $attributes['accentColor'] ) ? $attributes['accentColor'] : '';
-        $accent_color = $this->get_color_value( $accent_color_slug, '#007cba' );
+        $heading_color_slug = isset( $attributes['headingColor'] ) ? $attributes['headingColor'] : '';
+
+        $bg_color = $bg_color_slug;
+        $text_color = $text_color_slug;
+        $accent_color = $accent_color_slug;
+        $heading_color = $heading_color_slug;
+
+        $styles = array();
+        if ( ! empty( $bg_color ) ) {
+            $styles[] = '--marketo-background-color: ' . esc_attr( $bg_color );
+        }
+        if ( ! empty( $text_color ) ) {
+            $styles[] = '--marketo-text-color: ' . esc_attr( $text_color );
+        }
         if ( ! empty( $accent_color ) ) {
-            $wrapper_attributes .= ' style="--marketo-accent-color: ' . esc_attr( $accent_color ) . ';"';
+            $styles[] = '--marketo-accent-color: ' . esc_attr( $accent_color );
         }
 
-        // Start output buffering
+        if ( ! empty( $heading_color ) ) {
+            $styles[] = '--marketo-heading-color: ' . esc_attr( $heading_color );
+        }
+        
+        if ( ! empty( $styles ) ) {
+            $wrapper_attributes .= ' style="' . implode( '; ', $styles ) . ';"';
+        }
+
         ob_start();
         
         // Global Custom CSS from Customizer
@@ -288,35 +275,37 @@ class Marketo_Form_Block_Core {
         if ( ! empty( $global_css ) ) {
             echo '<style type="text/css" id="marketo-global-custom-css">' . wp_strip_all_tags( $global_css ) . '</style>';
         }
-
-        // Custom CSS if provided
-        if ( ! empty( $custom_css ) ) {
-            // Custom CSS should not be escaped with esc_html as it breaks the CSS
-            // Instead, we'll use wp_strip_all_tags to remove any potentially harmful HTML
-            // Also add a unique ID to prevent CSS conflicts
-            echo '<style type="text/css" id="marketo-custom-css-' . esc_attr( $form_container_id ) . '">'
-                . wp_strip_all_tags( $custom_css )
-                . '</style>';
-        }
-        
+               
         // On production, use the direct HTML approach with data attributes
         ?>
-        <div id="<?php echo esc_attr($form_container_id); ?>" <?php echo $wrapper_attributes; ?>>
-            <form
-                id="mktoForm_<?php echo esc_attr($form_id); ?>"
-                class="mktoForm"
-                data-id="<?php echo esc_attr($form_id); ?>"
-                <?php if (!empty($redirect_url)) : ?>
-                data-confirmation-type="redirect"
-                data-link="<?php echo esc_attr($redirect_url); ?>"
-                <?php else : ?>
-                data-confirmation-type="message"
-                <?php endif; ?>>
-            </form>
-            <div id="mktoFormSuccess-<?php echo esc_attr($form_container_id); ?>" class="marketo-form-success" style="display: none;">
-                <?php echo esc_html($success_message); ?>
+        <div <?php echo $wrapper_attributes; ?>>
+            <form id="mktoForm_<?php echo esc_attr( $form_id ); ?>" class="mktoForm"></form>
+            <div id="mktoFormSuccess-<?php echo esc_attr($form_container_id); ?>" class="marketo-form-success">
+                <?php echo esc_html( $success_message ); ?>
             </div>
         </div>
+        <script type="text/javascript">
+            document.addEventListener('DOMContentLoaded', function() {
+                if (typeof MktoForms2 !== 'undefined') {
+                    MktoForms2.loadForm("//<?php echo esc_js( $marketo_instance ); ?>", "<?php echo esc_js( $munchkin_id ); ?>", <?php echo esc_js( $form_id ); ?>, function(form) {
+                        form.onSuccess(function(values, followUpUrl) {
+                            <?php if ( ! empty( $redirect_url ) ) : ?>
+                                window.location.href = "<?php echo esc_url( $redirect_url ); ?>";
+                                return false;
+                            <?php else : ?>
+                                var formElem = form.getFormElem()[0];
+                                // Add a class to the block wrapper on success
+                                var wrapper = formElem.closest('.wp-block-marketo-form-block-form');
+                                if (wrapper) {
+                                    wrapper.classList.add('marketo-form-is-success');
+                                }
+                                return false; // Prevent default redirect
+                            <?php endif; ?>
+                        });
+                    });
+                }
+            });
+        </script>
         <?php
         
         // Return the buffered content
@@ -476,94 +465,8 @@ class Marketo_Form_Block_Core {
      * @return array Test result with success status and message.
      */
     private function test_marketo_connection() {
-        $instance = get_option( 'marketo_form_block_instance', 'app-ab33.marketo.com' );
-        $instance = preg_replace( '#^https?://#', '', $instance );
-        
-        // Ensure the instance is properly sanitized before creating the URL
-        $instance = sanitize_text_field( $instance );
-        
-        // Use esc_url_raw for URLs that will be used in HTTP requests
-        $url = esc_url_raw( 'https://' . $instance . '/js/forms2/js/forms2.min.js' );
-        
-        
-        $response = wp_remote_get( $url, array(
-            'timeout' => 15,
-            'sslverify' => true,
-            'user-agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . get_bloginfo( 'url' ),
-            'headers' => array(
-                'Referer' => site_url(),
-                'Origin' => site_url(),
-            ),
-        ) );
-        
-        if ( is_wp_error( $response ) ) {
-            $error_message = $response->get_error_message();
-            
-            return array(
-                'success' => false,
-                'message' => sprintf(
-                    __( 'Connection failed: %s', 'marketo-form-block' ),
-                    '<code>' . esc_html( $error_message ) . '</code>'
-                ) . '<br><br>' .
-                __( 'Troubleshooting tips:', 'marketo-form-block' ) .
-                '<ul>' .
-                '<li>' . __( 'Verify your Marketo instance URL is correct', 'marketo-form-block' ) . '</li>' .
-                '<li>' . __( 'Check if your server can make outbound HTTPS requests', 'marketo-form-block' ) . '</li>' .
-                '<li>' . __( 'Ensure your domain is allowed in Marketo\'s CORS settings', 'marketo-form-block' ) . '</li>' .
-                '</ul>',
-            );
-        }
-        
-        $code = wp_remote_retrieve_response_code( $response );
-        $headers = wp_remote_retrieve_headers( $response );
-        $body = wp_remote_retrieve_body( $response );
-        
-        
-        if ( $code !== 200 ) {
-            $message = sprintf(
-                __( 'Connection failed with HTTP code %d. Please check your Marketo Instance URL.', 'marketo-form-block' ),
-                intval( $code )
-            );
-            
-            // Add more specific error information based on status code
-            if ( $code === 403 ) {
-                $message .= '<br>' . __( 'Access forbidden. Your domain may not be authorized in Marketo\'s CORS settings.', 'marketo-form-block' );
-            } elseif ( $code === 404 ) {
-                $message .= '<br>' . __( 'The Marketo Forms API endpoint was not found. Double-check your instance URL.', 'marketo-form-block' );
-            } elseif ( $code >= 500 ) {
-                $message .= '<br>' . __( 'Marketo server error. The service might be temporarily unavailable.', 'marketo-form-block' );
-            }
-            
-            
-            return array(
-                'success' => false,
-                'message' => $message,
-            );
-        }
-        
-        // Check if the response actually contains the Marketo Forms API
-        if ( strpos( $body, 'MktoForms2' ) === false ) {
-            
-            return array(
-                'success' => false,
-                'message' => __( 'Connection succeeded but the response does not appear to be the Marketo Forms API. Please check your Marketo Instance URL.', 'marketo-form-block' ),
-            );
-        }
-        
-        // Check for CORS headers
-        $has_cors_headers = isset( $headers['access-control-allow-origin'] );
-        
-        
-        $message = __( 'Connection successful! Your Marketo instance is accessible.', 'marketo-form-block' );
-        
-        if ( ! $has_cors_headers ) {
-            $message .= '<br><br>' . __( 'Note: The Marketo server did not return CORS headers. This might cause issues with form loading on the frontend.', 'marketo-form-block' );
-        }
-        
-        return array(
-            'success' => true,
-            'message' => $message,
-        );
+        $api = Marketo_API::get_instance();
+        return $api->test_connection();
     }
     
     /**
@@ -680,30 +583,6 @@ class Marketo_Form_Block_Core {
         ) );
     }
 
-    /**
-     * Get the hex value for a color slug.
-     *
-     * @param string $slug The color slug.
-     * @param string $default The default color.
-     * @return string The hex color value.
-     */
-    private function get_color_value( $slug, $default ) {
-        if ( empty( $slug ) ) {
-            return $default;
-        }
-        if ( preg_match( '/^#([a-f0-9]{3}){1,2}$/i', $slug ) ) {
-            return $slug;
-        }
-        $color_palette = get_theme_support( 'editor-color-palette' );
-        if ( ! empty( $color_palette[0] ) ) {
-            foreach ( $color_palette[0] as $color ) {
-                if ( $color['slug'] === $slug ) {
-                    return $color['color'];
-                }
-            }
-        }
-        return $default;
-    }
 }
 
 // Initialize the plugin

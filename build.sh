@@ -31,6 +31,25 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
+# Function to increment the version
+increment_version() {
+    print_message "Incrementing plugin version..."
+    
+    # Get the current version from the main plugin file
+    current_version=$(grep -E "^\s*\*\s*Version:" marketo-form-block.php | sed 's/.*Version: *//')
+    
+    # Increment the patch version
+    new_version=$(echo "$current_version" | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+    
+    print_message "Bumping version from ${current_version} to ${new_version}"
+    
+    # Update the version in marketo-form-block.php
+    sed -i '' "s/Version: ${current_version}/Version: ${new_version}/" marketo-form-block.php
+    
+    # Update the version in package.json
+    sed -i '' "s/\"version\": \"${current_version}\"/\"version\": \"${new_version}\"/" package.json
+}
+
 # Function to install dependencies
 install_dependencies() {
     print_message "Installing dependencies..."
@@ -91,6 +110,7 @@ case "$1" in
         build_plugin
         ;;
     zip)
+        increment_version
         create_zip
         ;;
     clean)
@@ -99,6 +119,7 @@ case "$1" in
     all)
         install_dependencies
         build_plugin
+        increment_version
         create_zip
         ;;
     *)
