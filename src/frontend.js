@@ -149,6 +149,8 @@
 	 */
 	function createMultiSelect( selectEl, wrapper ) {
 		selectEl.style.display = 'none'; // Hide original
+		selectEl.setAttribute( 'aria-hidden', 'true' );
+		selectEl.tabIndex = -1;
 
 		const container = document.createElement( 'div' );
 		container.className = 'multiselect-container';
@@ -162,6 +164,53 @@
 		dropdown.className = 'multiselect-dropdown';
 		container.appendChild( dropdown );
 
+		// Accessibility: ARIA roles and tab order
+		const dropdownId = 'ms-dd-' + Math.random().toString( 36 ).slice( 2 );
+		dropdown.id = dropdownId;
+		dropdown.setAttribute( 'role', 'listbox' );
+		dropdown.setAttribute( 'aria-multiselectable', 'true' );
+		
+		selectedDisplay.setAttribute( 'tabindex', '0' );
+		selectedDisplay.setAttribute( 'role', 'combobox' );
+		selectedDisplay.setAttribute( 'aria-haspopup', 'listbox' );
+		selectedDisplay.setAttribute( 'aria-expanded', 'false' );
+		selectedDisplay.setAttribute( 'aria-controls', dropdownId );
+
+		// Link combobox to its visible label for screen readers
+		const labelEl = wrapper.querySelector( '.mktoLabel' );
+		if ( labelEl ) {
+			if ( ! labelEl.id ) {
+				labelEl.id = 'ms-lbl-' + Math.random().toString( 36 ).slice( 2 );
+			}
+			selectedDisplay.setAttribute( 'aria-labelledby', labelEl.id );
+		} else if ( selectEl.name ) {
+			selectedDisplay.setAttribute( 'aria-label', selectEl.name );
+		}
+
+		let currentActiveIndex = -1;
+
+		function openDropdown() {
+			dropdown.classList.add( 'is-open' );
+			wrapper.classList.add( 'form-field--is-active' );
+			selectedDisplay.setAttribute( 'aria-expanded', 'true' );
+		}
+
+		function closeDropdown() {
+			dropdown.classList.remove( 'is-open' );
+			wrapper.classList.remove( 'form-field--is-active' );
+			selectedDisplay.setAttribute( 'aria-expanded', 'false' );
+			currentActiveIndex = -1;
+		}
+
+		function focusOption( index ) {
+			const opts = Array.from( dropdown.querySelectorAll( '.multiselect-option' ) );
+			if ( opts.length === 0 ) return;
+			if ( index < 0 ) index = 0;
+			if ( index >= opts.length ) index = opts.length - 1;
+			currentActiveIndex = index;
+			opts[ index ].focus();
+		}
+		
 		const options = Array.from( selectEl.options );
 
 		function updateSelectedDisplay() {
@@ -172,8 +221,10 @@
 					chip.className = 'multiselect-chip';
 					chip.textContent = option.textContent;
 
-					const removeBtn = document.createElement( 'span' );
+					const removeBtn = document.createElement( 'button' );
+					removeBtn.type = 'button';
 					removeBtn.className = 'multiselect-chip-remove';
+					removeBtn.setAttribute( 'aria-label', 'Remove ' + option.textContent );
 					removeBtn.textContent = '×';
 					removeBtn.addEventListener( 'click', ( e ) => {
 						e.stopPropagation();
@@ -199,7 +250,9 @@
 					const option = options.find(
 						( o ) => o.value === optEl.dataset.value
 					);
-					optEl.classList.toggle( 'is-selected', option.selected );
+					const isSel = option.selected;
+					optEl.classList.toggle( 'is-selected', isSel );
+					optEl.setAttribute( 'aria-selected', isSel ? 'true' : 'false' );
 				} );
 		}
 
@@ -208,26 +261,96 @@
 			optionEl.className = 'multiselect-option';
 			optionEl.textContent = option.textContent;
 			optionEl.dataset.value = option.value;
+			optionEl.setAttribute( 'role', 'option' );
+			optionEl.setAttribute( 'tabindex', '-1' );
+			optionEl.setAttribute( 'aria-selected', option.selected ? 'true' : 'false' );
 			optionEl.addEventListener( 'click', () => {
 				option.selected = ! option.selected;
 				updateSelectedDisplay();
 				updateDropdownOptions();
+				optionEl.focus();
 			} );
 			dropdown.appendChild( optionEl );
 		} );
 
 		selectedDisplay.addEventListener( 'click', () => {
-			dropdown.classList.toggle( 'is-open' );
-			wrapper.classList.toggle(
-				'form-field--is-active',
-				dropdown.classList.contains( 'is-open' )
-			);
+			if ( dropdown.classList.contains( 'is-open' ) ) {
+				closeDropdown();
+			} else {
+				openDropdown();
+				focusOption( 0 );
+			}
+		} );
+
+		selectedDisplay.addEventListener( 'focus', () => {
+			wrapper.classList.add( 'form-field--is-active' );
+		} );
+
+		selectedDisplay.addEventListener( 'blur', () => {
+			// Close if focus moved outside the widget
+			setTimeout( () => {
+				if ( ! container.contains( document.activeElement ) ) {
+					closeDropdown();
+				}
+			}, 0 );
+		} );
+
+		selectedDisplay.addEventListener( 'keydown', ( e ) => {
+			if ( e.key === 'Enter' || e.key === ' ' ) {
+				e.preventDefault();
+				if ( dropdown.classList.contains( 'is-open' ) ) {
+					closeDropdown();
+				} else {
+					openDropdown();
+					focusOption( 0 );
+				}
+			} else if ( e.key === 'ArrowDown' ) {
+				e.preventDefault();
+				if ( ! dropdown.classList.contains( 'is-open' ) ) openDropdown();
+				focusOption( 0 );
+			} else if ( e.key === 'ArrowUp' ) {
+				e.preventDefault();
+				if ( ! dropdown.classList.contains( 'is-open' ) ) openDropdown();
+				const lastIndex = dropdown.querySelectorAll( '.multiselect-option' ).length - 1;
+				focusOption( lastIndex );
+			}
+		} );
+
+		dropdown.addEventListener( 'keydown', ( e ) => {
+			const opts = Array.from( dropdown.querySelectorAll( '.multiselect-option' ) );
+			if ( e.key === 'ArrowDown' ) {
+				e.preventDefault();
+				focusOption( currentActiveIndex + 1 );
+			} else if ( e.key === 'ArrowUp' ) {
+				e.preventDefault();
+				focusOption( currentActiveIndex - 1 );
+			} else if ( e.key === 'Home' ) {
+				e.preventDefault();
+				focusOption( 0 );
+			} else if ( e.key === 'End' ) {
+				e.preventDefault();
+				focusOption( opts.length - 1 );
+			} else if ( e.key === 'Escape' ) {
+				e.preventDefault();
+				closeDropdown();
+				selectedDisplay.focus();
+			} else if ( e.key === 'Enter' || e.key === ' ' ) {
+				e.preventDefault();
+				if ( currentActiveIndex >= 0 ) {
+					const optEl = opts[ currentActiveIndex ];
+					const option = options.find( ( o ) => o.value === optEl.dataset.value );
+					option.selected = ! option.selected;
+					updateSelectedDisplay();
+					updateDropdownOptions();
+				}
+			} else if ( e.key === 'Tab' ) {
+				closeDropdown();
+			}
 		} );
 
 		document.addEventListener( 'click', ( e ) => {
 			if ( ! container.contains( e.target ) ) {
-				dropdown.classList.remove( 'is-open' );
-				wrapper.classList.remove( 'form-field--is-active' );
+				closeDropdown();
 			}
 		} );
 
