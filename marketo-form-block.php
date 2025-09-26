@@ -53,6 +53,7 @@ class Marketo_Form_Block_Core {
         add_action( 'init', array( $this, 'register_block' ) );
         add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_editor_assets' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
+        add_filter( 'render_block', array( $this, 'maybe_enqueue_marketo_scripts' ), 10, 2 );
         
         // Add settings
         add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
@@ -162,9 +163,12 @@ class Marketo_Form_Block_Core {
 
     /**
      * Enqueue frontend assets.
+     *
+     * Registers scripts and enqueues styles. Scripts are enqueued at runtime
+     * via the render_block filter when the Marketo block is detected.
      */
     public function enqueue_frontend_assets() {
-        // Enqueue frontend styles
+        // Enqueue frontend styles unconditionally on the frontend.
         wp_enqueue_style(
             'marketo-form-block-style',
             MARKETO_FORM_BLOCK_URL . 'build/style-index.css',
@@ -172,19 +176,13 @@ class Marketo_Form_Block_Core {
             MARKETO_FORM_BLOCK_VERSION
         );
 
-        // Only load scripts on singular pages that contain the block.
-        if ( ! is_singular() || ! has_block( 'marketo-form-block/form' ) ) {
-            return;
-        }
-
-        // Get Marketo settings and sanitize
+        // Register scripts only (do not enqueue here). They will be enqueued when the block renders.
         $marketo_instance = get_option( 'marketo_form_block_instance', 'app-ab33.marketo.com' );
         $marketo_instance = preg_replace( '#^https?://#', '', $marketo_instance );
         $marketo_instance = sanitize_text_field( $marketo_instance );
-        $munchkin_id      = sanitize_text_field( get_option( 'marketo_form_block_munchkin_id', '041-FSQ-281' ) );
 
-        // Enqueue the Marketo forms API script
-        wp_enqueue_script(
+        // Register the Marketo forms API script (footer).
+        wp_register_script(
             'marketo-forms-api',
             'https://' . esc_attr( $marketo_instance ) . '/js/forms2/js/forms2.min.js',
             array(),
@@ -192,19 +190,73 @@ class Marketo_Form_Block_Core {
             true
         );
 
-        // Enqueue the frontend script for styling hooks
-        wp_enqueue_script(
+        // Register the plugin's frontend script (depends on Marketo forms API, footer).
+        wp_register_script(
             'marketo-form-block-frontend',
             MARKETO_FORM_BLOCK_URL . 'build/frontend.js',
-            array( 'marketo-forms-api' ), // Depends on the Marketo API script
+            array( 'marketo-forms-api' ),
             MARKETO_FORM_BLOCK_VERSION,
             true
         );
-
-        // The marketo object is no longer needed in the external JS file as the
-        // form loading logic is now handled by an inline script.
     }
     
+
+    /**
+     * Conditionally enqueue Marketo scripts when our block is rendered anywhere
+     * (post content, template parts, widgets, FSE parts, etc.).
+     *
+     * @param string $block_content The block content.
+     * @param array  $block         The full block data.
+     * @return string The (unmodified) block content.
+     */
+    public function maybe_enqueue_marketo_scripts( $block_content, $block ) {
+        // Do not load in admin, editor, feeds, or REST requests.
+        if ( is_admin() || is_feed() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+            return $block_content;
+        }
+
+        if ( empty( $block ) || empty( $block['blockName'] ) ) {
+            return $block_content;
+        }
+
+        if ( 'marketo-form-block/form' !== $block['blockName'] ) {
+            return $block_content;
+        }
+
+        // Ensure scripts are registered (fallback in case registration hasn't run yet).
+        if ( ! wp_script_is( 'marketo-forms-api', 'registered' ) ) {
+            $marketo_instance = get_option( 'marketo_form_block_instance', 'app-ab33.marketo.com' );
+            $marketo_instance = preg_replace( '#^https?://#', '', $marketo_instance );
+            $marketo_instance = sanitize_text_field( $marketo_instance );
+            wp_register_script(
+                'marketo-forms-api',
+                'https://' . esc_attr( $marketo_instance ) . '/js/forms2/js/forms2.min.js',
+                array(),
+                null,
+                true
+            );
+        }
+
+        if ( ! wp_script_is( 'marketo-form-block-frontend', 'registered' ) ) {
+            wp_register_script(
+                'marketo-form-block-frontend',
+                MARKETO_FORM_BLOCK_URL . 'build/frontend.js',
+                array( 'marketo-forms-api' ),
+                MARKETO_FORM_BLOCK_VERSION,
+                true
+            );
+        }
+
+        // Enqueue scripts exactly once per request even if block appears multiple times.
+        if ( ! wp_script_is( 'marketo-forms-api', 'enqueued' ) && ! wp_script_is( 'marketo-forms-api', 'queue' ) ) {
+            wp_enqueue_script( 'marketo-forms-api' );
+        }
+        if ( ! wp_script_is( 'marketo-form-block-frontend', 'enqueued' ) && ! wp_script_is( 'marketo-form-block-frontend', 'queue' ) ) {
+            wp_enqueue_script( 'marketo-form-block-frontend' );
+        }
+
+        return $block_content;
+    }
 
     /**
      * Server-side rendering of the Marketo form block.
