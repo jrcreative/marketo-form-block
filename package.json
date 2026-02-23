@@ -1,6 +1,6 @@
 {
 	"name": "marketo-form-block",
-	"version": "1.1.0",
+	"version": "1.2.1",
 	"description": "A Gutenberg block for embedding Marketo forms with custom styling options",
 	"main": "build/index.js",
 	"scripts": {

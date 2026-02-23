@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Marketo Form Block
  * Description: A Gutenberg block for embedding Marketo forms with custom styling options.
- * Version: 1.1
+ * Version: 1.2.1
  * Author: Volume11
  * Author URI: https://volume11.agency
  * Text Domain: marketo-form-block
@@ -34,7 +34,7 @@ if (! defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('MARKETO_FORM_BLOCK_VERSION', '1.0.0');
+define('MARKETO_FORM_BLOCK_VERSION', '1.2.0');
 define('MARKETO_FORM_BLOCK_PATH', plugin_dir_path(__FILE__));
 define('MARKETO_FORM_BLOCK_URL', plugin_dir_url(__FILE__));
 
@@ -71,6 +71,7 @@ class Marketo_Form_Block_Core
 
     /**
      * Add security headers to prevent XSS and other attacks.
+     * Uses a permissive CSP that allows all HTTPS sources for third-party integrations.
      */
     public function add_security_headers()
     {
@@ -78,12 +79,53 @@ class Marketo_Form_Block_Core
             return;
         }
 
-        // Add Content Security Policy to allow Marketo scripts
-        $marketo_instance = sanitize_text_field(get_option('marketo_form_block_instance', 'app-ab33.marketo.com'));
-        $csp  = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://{$marketo_instance} http://{$marketo_instance} blob:;";
-        $csp .= " worker-src 'self' blob:;";
-        $csp .= " frame-src 'self' https://{$marketo_instance} http://{$marketo_instance};";
-        $csp .= " connect-src 'self' https://{$marketo_instance} http://{$marketo_instance} " . admin_url('admin-ajax.php') . ";";
+        // Define allowed sources for each CSP directive
+        // Using permissive HTTPS-only policy to support Marketo's third-party integrations
+        $allowed_sources = array(
+            'script-src' => array(
+                "'self'",
+                "'unsafe-inline'",
+                "'unsafe-eval'",
+                'https:',  // Allow all HTTPS scripts
+                'blob:',
+            ),
+            'frame-src' => array(
+                "'self'",
+                'https:',  // Allow all HTTPS iframes
+            ),
+            'connect-src' => array(
+                "'self'",
+                'https:',  // Allow all HTTPS connections
+                'wss:',    // Allow WebSocket Secure connections
+                admin_url('admin-ajax.php'),
+            ),
+            'img-src' => array(
+                "'self'",
+                'data:',
+                'https:',  // Allow all HTTPS images
+            ),
+            'style-src' => array(
+                "'self'",
+                "'unsafe-inline'",
+                'https:',  // Allow all HTTPS styles
+            ),
+            'font-src' => array(
+                "'self'",
+                'data:',
+                'https:',  // Allow all HTTPS fonts
+            ),
+        );
+
+        // Allow filtering of CSP sources for customization
+        $allowed_sources = apply_filters('marketo_form_block_csp_sources', $allowed_sources);
+
+        // Build CSP header
+        $csp_directives = array();
+        foreach ($allowed_sources as $directive => $sources) {
+            $csp_directives[] = $directive . ' ' . implode(' ', $sources);
+        }
+        
+        $csp = implode('; ', $csp_directives) . ';';
         header("Content-Security-Policy: " . $csp);
     }
 
